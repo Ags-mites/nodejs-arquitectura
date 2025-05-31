@@ -1,0 +1,33 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Package {
+  id                    Int              @id @default(autoincrement())
+  trackingNumber        String           @unique
+  senderName            String
+  receiverName          String
+  origin                String
+  destination           String
+  weight                Float
+  dimensions            String
+  status                String
+  currentLocation       String
+  estimatedDeliveryDate DateTime?
+  history               TrackingEvent[]
+}
+
+model TrackingEvent {
+  id         Int      @id @default(autoincrement())
+  date       DateTime
+  description String
+  location    String
+  package     Package @relation(fields: [packageId], references: [id])
+  packageId   Int
+}
