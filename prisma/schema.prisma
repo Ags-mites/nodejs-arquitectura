@@ -21,6 +21,9 @@ model Package {
   currentLocation       String
   estimatedDeliveryDate DateTime?
   history               TrackingEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model TrackingEvent {
@@ -30,4 +33,7 @@ model TrackingEvent {
   location    String
   package     Package @relation(fields: [packageId], references: [id])
   packageId   Int
+
+  eventType   String?    @default("status_update")
+  details     Json?
 }

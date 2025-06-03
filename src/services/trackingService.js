@@ -1,20 +1,51 @@
-// Simula un servicio de tracking real
+import { prisma } from "../prisma/client";
+import { TrackingError } from "../models/trackingError";
+
 export default {
   async getTrackingStatus(trackingNumber) {
-    // Aquí normalmente se conectaría a una base de datos o API externa
-    if (trackingNumber === '12345') {
+    if (!trackingNumber || typeof trackingNumber !== 'string')
+      //throw TrackingError.requiredField('trackingNumber')
+      throw new Error('Error')
+
+    //todo cambiar a uuid
+    const re = /^PE\d{10}$/;
+    if (!re.test(trackingNumber)) {
+      throw TrackingError.invalidTrackingNumber(trackingNumber);
+    }
+
+    const pkg = await prisma.package.findUnique({
+      where: { trackingNumber },
+      include: {
+        history: {
+          ordorderBy: { date: 'asc' }
+        }
+      }
+    })
+
+    if (!pkg) {
       return {
-        status: 'En tránsito',
-        estimatedDelivery: '2025-06-05'
+        error: {
+          errorCode: 404,
+          errorMessage: 'Tracking no encontrado',
+          invalidField: 'trackingNumber'
+        }
       };
+      throw new Error('paquete no existe')
     }
 
     return {
-      error: {
-        errorCode: 404,
-        errorMessage: 'Tracking no encontrado',
-        invalidField: 'trackingNumber'
+      status: pkg.status,
+      currentLocation: pkg.currentLocation,
+      estimatedDeliveryDate: pkg.estimatedDeliveryDate
+        ? pkg.estimatedDeliveryDate.toISOString().split('T')[0]
+        : null,
+      history: {
+        event: pkg.history.map(evt => ({
+          date: evt.date.toISOString(),
+          description: evt.description,
+          location: evt.location
+        }))
       }
-    };
+    }
   }
 };
