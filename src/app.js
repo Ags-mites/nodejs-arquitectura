@@ -1,18 +1,17 @@
-import express from "express";
-import soap from "soap";
-import fs from "fs";
-import path from "path";
-import cors from "cors";
-import helmet from "helmet";
+import express from 'express';
+import soap from 'soap';
+import fs from 'fs';
+import path from 'path';
+import cors from 'cors';
+import helmet from 'helmet';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 import trackingService from './services/trackingService.js';
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const port = process.env.PORT || 3000;
 
 app.use(helmet());
 app.use(cors());
@@ -23,6 +22,7 @@ app.use((req, res, next) => {
   next();
 });
 
+// Definir el servicio SOAP (como en el primer código)
 const soapService = {
   TrackingService: {
     TrackingPort: {
@@ -30,15 +30,12 @@ const soapService = {
         try {
           console.log('SOAP Request received:', args);
 
+          // Validación
           if (!args.trackingNumber) {
-            const error = {
+            return callback({
               Fault: {
-                Code: {
-                  Value: "soap:Sender"
-                },
-                Reason: {
-                  Text: "Tracking number is required"
-                },
+                Code: { Value: "soap:Sender" },
+                Reason: { Text: "Tracking number is required" },
                 Detail: {
                   TrackingError: {
                     errorCode: 400,
@@ -47,44 +44,33 @@ const soapService = {
                   }
                 }
               }
-            };
-            return callback(error);
+            });
           }
 
-          const result = await trackingService.GetTrackingStatus(args.trackingNumber);
+          // Lógica de negocio
+          const result = await trackingService.getTrackingStatus(args.trackingNumber);
 
           if (result.error) {
-            const error = {
+            return callback({
               Fault: {
-                Code: {
-                  Value: "soap:Receiver"
-                },
-                Reason: {
-                  Text: result.error.errorMessage
-                },
+                Code: { Value: "soap:Receiver" },
+                Reason: { Text: result.error.errorMessage },
                 Detail: {
                   TrackingError: result.error
                 }
               }
-            };
-            return callback(error);
+            });
           }
 
           console.log('SOAP Response:', result);
-          callback(null, result)
+          callback(null, result);
 
         } catch (error) {
-
           console.error('Error processing SOAP request:', error);
-
-          const soapError = {
+          return callback({
             Fault: {
-              Code: {
-                Value: "soap:Receiver"
-              },
-              Reason: {
-                Text: "Internal server error"
-              },
+              Code: { Value: "soap:Receiver" },
+              Reason: { Text: "Internal server error" },
               Detail: {
                 TrackingError: {
                   errorCode: 500,
@@ -93,15 +79,44 @@ const soapService = {
                 }
               }
             }
-          };
-          callback(soapError);
-
+          });
         }
       }
     }
   }
-}
+};
 
+// Leer archivo WSDL
+const wsdlPath = path.join(__dirname, 'wsdl', 'tracking.wsdl');
+const wsdlXML = fs.readFileSync(wsdlPath, 'utf8');
+
+// Iniciar servidor y publicar el servicio SOAP
+const server = app.listen(port, () => {
+  console.log(`� Servidor Express corriendo en puerto ${port}`);
+  soap.listen(server, '/tracking', soapService, wsdlXML, (err, res) => {
+    if (err) {
+      console.error('❌ Error creando servicio SOAP:', err);
+      return;
+    }
+    console.log('✅ Servicio SOAP creado exitosamente');
+    console.log(`� WSDL disponible en: http://localhost:${port}/tracking?wsdl`);
+    console.log(`� Endpoint SOAP: http://localhost:${port}/tracking`);
+  });
+});
+
+// Ruta de inicio
+app.get('/', (req, res) => {
+  res.send(`
+    <h1>Envíos Express - Servicio SOAP</h1>
+    <p>Servicio funcionando correctamente</p>
+    <ul>
+      <li><a href="/tracking?wsdl">Ver WSDL</a></li>
+      <li>Endpoint SOAP: /tracking</li>
+    </ul>
+  `);
+});
+
+// Ruta de salud
 app.get('/health', (req, res) => {
   res.json({
     status: 'OK',
@@ -110,69 +125,4 @@ app.get('/health', (req, res) => {
   });
 });
 
-app.get('/', (req, res) => {
-  res.json({
-    service: 'EnvíosExpress SOAP API',
-    version: '1.0.0',
-    description: 'API SOAP para seguimiento de paquetes',
-    endpoints: {
-      wsdl: `http://localhost:${PORT}/tracking?wsdl`,
-      soap: `http://localhost:${PORT}/tracking`,
-      health: `http://localhost:${PORT}/health`
-    },
-    documentation: 'Ver README.md para instrucciones de uso'
-  });
-});
-
-async function startServer() {
-  try {
-    const wsdlPath = path.join(__dirname, 'wsdl', 'tracking.wsdl');
-    const wsdlXml = fs.readFileSync(wsdlPath, 'utf8');
-
-    app.listen(PORT, () => {
-      console.log(`Servidor iniciado en puerto ${PORT}`);
-      console.log(`WSDL disponible en: http://localhost:${PORT}/tracking?wsdl`);
-      console.log(`Endpoint SOAP: http://localhost:${PORT}/tracking`);
-      console.log(`Health check: http://localhost:${PORT}/health`);
-
-      soap.listen(app, '/traking', soapService, wsdlXml, (err, res) => {
-        if (err) {
-          console.error('Error creando el servicio SOAP', err);
-          process.exit(1);
-        }
-        console.log('Servicio SOAP configurado correctamente');
-        console.log('Metodos disponibles: GetTrackingStatus');
-      });
-    });
-
-  } catch (error) {
-    console.error('Error iniciando el servidor: ', error);
-    process.exit(1);
-  }
-}
-
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
-});
-
-// Manejo de cierre graceful
-process.on('SIGTERM', () => {
-  console.log('SIGTERM recibido, cerrando servidor...');
-  process.exit(0);
-});
-
-process.on('SIGINT', () => {
-  console.log('SIGINT recibido, cerrando servidor...');
-  process.exit(0);
-});
-
-// Iniciar el servidor
-startServer();
-
-module.exports = app;
+export default app;
