@@ -1,15 +1,16 @@
-require('dotenv').config();
-const express = require('express');
-const soap = require('soap');
-const fs = require('fs');
-const path = require('path');
-const cors = require('cors');
-const helmet = require('helmet');
+import dotenv from 'dotenv';
+import express, { text, json, urlencoded } from 'express';
+import { listen } from 'soap';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import cors from 'cors';
+import helmet from 'helmet';
 
-const { connectDatabase } = require('./database/connection');
-const SoapController = require('./controllers/SoapController');
-const logger = require('./utils/logger');
+import { connectDatabase } from './database/connection.js';
+import { soapLoggingMiddleware, getServiceDefinition, soapErrorHandler } from './controllers/soapController.js';
+import { logRequest, info as _info, debug, error as _error, warn, logAppEvent } from './utils/logger';
 
+dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -23,49 +24,49 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'SOAPAction', 'Authorization']
 }));
 
-app.use(express.text({ type: 'text/xml' }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(text({ type: 'text/xml' }));
+app.use(json());
+app.use(urlencoded({ extended: true }));
 
 app.use((req, res, next) => {
   const startTime = Date.now();
 
   res.on('finish', () => {
     const responseTime = Date.now() - startTime;
-    logger.logRequest(req, res, responseTime);
+    logRequest(req, res, responseTime);
   });
 
   next();
 });
 
-app.use('/soap', SoapController.soapLoggingMiddleware);
+app.use('/soap', soapLoggingMiddleware);
 
 async function initializeSOAPServer() {
   try {
-    const wsdlPath = path.join(__dirname, 'wsdl', 'tracking-service.wsdl');
-    const wsdlContent = fs.readFileSync(wsdlPath, 'utf8');
+    const wsdlPath = join(__dirname, 'wsdl', 'tracking-service.wsdl');
+    const wsdlContent = readFileSync(wsdlPath, 'utf8');
 
-    logger.info('WSDL cargado exitosamente');
+    _info('WSDL cargado exitosamente');
 
-    const serviceDefinition = SoapController.getServiceDefinition();
+    const serviceDefinition = getServiceDefinition();
 
-    const soapServer = soap.listen(app, '/soap', serviceDefinition, wsdlContent, () => {
-      logger.info('Servidor SOAP inicializado en /soap');
-      logger.info(`WSDL disponible en: http://localhost:${PORT}/soap?wsdl`);
+    const soapServer = listen(app, '/soap', serviceDefinition, wsdlContent, () => {
+      _info('Servidor SOAP inicializado en /soap');
+      _info(`WSDL disponible en: http://localhost:${PORT}/soap?wsdl`);
     });
 
     soapServer.log = (type, data) => {
       if (type === 'received') {
-        logger.debug('SOAP Request received:', data);
+        debug('SOAP Request received:', data);
       } else if (type === 'replied') {
-        logger.debug('SOAP Response sent:', data);
+        debug('SOAP Response sent:', data);
       }
     };
 
     return soapServer;
 
   } catch (error) {
-    logger.error('Error al inicializar servidor SOAP:', error);
+    _error('Error al inicializar servidor SOAP:', error);
     throw error;
   }
 }
@@ -108,19 +109,19 @@ app.get('/info', (req, res) => {
 
 app.get('/wsdl', (req, res) => {
   try {
-    const wsdlPath = path.join(__dirname, 'wsdl', 'tracking-service.wsdl');
-    const wsdlContent = fs.readFileSync(wsdlPath, 'utf8');
+    const wsdlPath = join(__dirname, 'wsdl', 'tracking-service.wsdl');
+    const wsdlContent = readFileSync(wsdlPath, 'utf8');
 
     res.set('Content-Type', 'text/xml');
     res.send(wsdlContent);
   } catch (error) {
-    logger.error('Error al leer WSDL:', error);
+    _error('Error al leer WSDL:', error);
     res.status(500).json({ error: 'Error al cargar WSDL' });
   }
 });
 
 app.use('*', (req, res) => {
-  logger.warn(`404 - Ruta no encontrada: ${req.method} ${req.originalUrl}`);
+  warn(`404 - Ruta no encontrada: ${req.method} ${req.originalUrl}`);
   res.status(404).json({
     error: 'Ruta no encontrada',
     message: 'La ruta solicitada no existe en este servidor',
@@ -128,36 +129,36 @@ app.use('*', (req, res) => {
   });
 });
 
-app.use(SoapController.soapErrorHandler);
+app.use(soapErrorHandler);
 
 async function startServer() {
   try {
-    logger.logAppEvent('STARTING', 'Iniciando EnvíosExpress SOAP API');
+    logAppEvent('STARTING', 'Iniciando EnvíosExpress SOAP API');
 
     await connectDatabase();
     await initializeSOAPServer();
 
     const server = app.listen(PORT, () => {
-      logger.logAppEvent('STARTED', `Servidor corriendo en puerto ${PORT}`);
-      logger.info('EnvíosExpress SOAP API iniciado exitosamente');
-      logger.info(`Servidor disponible en: http://localhost:${PORT}`);
-      logger.info(`Servicio SOAP en: http://localhost:${PORT}/soap`);
-      logger.info(`WSDL en: http://localhost:${PORT}/soap?wsdl`);
-      logger.info(`Health check en: http://localhost:${PORT}/health`);
+      logAppEvent('STARTED', `Servidor corriendo en puerto ${PORT}`);
+      _info('EnvíosExpress SOAP API iniciado exitosamente');
+      _info(`Servidor disponible en: http://localhost:${PORT}`);
+      _info(`Servicio SOAP en: http://localhost:${PORT}/soap`);
+      _info(`WSDL en: http://localhost:${PORT}/soap?wsdl`);
+      _info(`Health check en: http://localhost:${PORT}/health`);
     });
 
     process.on('SIGTERM', () => {
-      logger.logAppEvent('SHUTTING_DOWN', 'Recibida señal SIGTERM');
+      logAppEvent('SHUTTING_DOWN', 'Recibida señal SIGTERM');
       server.close(() => {
-        logger.logAppEvent('STOPPED', 'Servidor cerrado exitosamente');
+        logAppEvent('STOPPED', 'Servidor cerrado exitosamente');
         process.exit(0);
       });
     });
 
     process.on('SIGINT', () => {
-      logger.logAppEvent('SHUTTING_DOWN', 'Recibida señal SIGINT');
+      logAppEvent('SHUTTING_DOWN', 'Recibida señal SIGINT');
       server.close(() => {
-        logger.logAppEvent('STOPPED', 'Servidor cerrado exitosamente');
+        logAppEvent('STOPPED', 'Servidor cerrado exitosamente');
         process.exit(0);
       });
     });
@@ -165,7 +166,7 @@ async function startServer() {
     return server;
 
   } catch (error) {
-    logger.error('Error fatal al iniciar servidor:', error);
+    _error('Error fatal al iniciar servidor:', error);
     process.exit(1);
   }
 }
@@ -174,4 +175,4 @@ if (require.main === module) {
   startServer();
 }
 
-module.exports = { app, startServer };
+export default { app, startServer };
