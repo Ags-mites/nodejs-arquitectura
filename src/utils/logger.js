@@ -1,5 +1,6 @@
 import winston from 'winston';
 import path from 'path';
+import fs from 'fs';
 
 const colors = {
   error: 'red',
@@ -55,7 +56,6 @@ const logger = winston.createLogger({
   exitOnError: false,
 });
 
-const fs = require('fs');
 const logsDir = 'logs';
 if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir);
@@ -103,4 +103,17 @@ process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
-module.exports = logger;
+export const {
+  error,
+  warn,
+  info,
+  debug,
+  http,
+  logRequest: logRequestFn,
+  logSOAPError,
+  logSOAPSuccess,
+  logDatabaseOperation,
+  logAppEvent
+} = logger;
+
+export { logger as default };

@@ -153,7 +153,7 @@ function validateInput(value, type, fieldName) {
   }
 }
 
-module.exports = {
+export default {
   TrackingError,
   ERROR_CODES,
   createErrorByCode,

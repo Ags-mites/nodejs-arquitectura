@@ -1,4 +1,4 @@
-const { prisma } = require('../database/connection');
+const { prisma } = require('../database/connection').default;
 const logger = require('../utils/logger');
 
 class TrackingEvent {
@@ -136,4 +136,4 @@ class TrackingEvent {
   }
 }
 
-module.exports = TrackingEvent;
+export default TrackingEvent;

@@ -1,7 +1,7 @@
-const Package = require('../models/package');
-const TrackingEvent = require('../models/trackingEvent');
-const logger = require('../utils/errors');
-const { TrackingError } = require('../utils/erros');
+import Package from '../models/package.js';
+import TrackingEvent from '../models/trackingEvent.js';
+import { info, error } from '../utils/logger.js';
+import TrackingError from '../utils/errors.js';
 
 class TrackingService {
   /**
@@ -169,8 +169,8 @@ class TrackingService {
  */
   static async getAllPackages() {
     try {
-      const package = await Package.findAll();
-      return package.map(pkg => ({
+      const packageResult = await Package.findAll();
+      return packageResult.map(pkg => ({
         ...pkg,
         status: Package.getStatusString(pkg.status)
       }));
@@ -186,4 +186,4 @@ class TrackingService {
   }
 }
 
-module.exports = TrackingService;
+export default TrackingService;

@@ -2,13 +2,17 @@ import dotenv from 'dotenv';
 import express, { text, json, urlencoded } from 'express';
 import { listen } from 'soap';
 import { readFileSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import cors from 'cors';
 import helmet from 'helmet';
 
 import { connectDatabase } from './database/connection.js';
 import { soapLoggingMiddleware, getServiceDefinition, soapErrorHandler } from './controllers/soapController.js';
-import { logRequest, info as _info, debug, error as _error, warn, logAppEvent } from './utils/logger';
+import logger from './utils/logger.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 dotenv.config();
 const app = express();
@@ -43,7 +47,7 @@ app.use('/soap', soapLoggingMiddleware);
 
 async function initializeSOAPServer() {
   try {
-    const wsdlPath = join(__dirname, 'wsdl', 'tracking-service.wsdl');
+    const wsdlPath = join(__dirname, 'wsdl', 'tracking.wsdl');
     const wsdlContent = readFileSync(wsdlPath, 'utf8');
 
     _info('WSDL cargado exitosamente');
@@ -171,7 +175,7 @@ async function startServer() {
   }
 }
 
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   startServer();
 }
 

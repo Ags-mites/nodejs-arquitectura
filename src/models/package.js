@@ -1,5 +1,5 @@
-const { prisma } = require('../database/connection');
-const logger = require('../utils/logger');
+import { prisma } from '../database/connection.js';
+import logger from '../utils/logger.js';
 
 class Package {
   /**
@@ -154,4 +154,4 @@ class Package {
   }
 }
 
-module.exports = Package;
+export default Package;
