@@ -17,23 +17,34 @@ model Package {
   destination           String
   weight                Float
   dimensions            String
-  status                String
+  status                PackageStatus  @default(RECEIVED)
   currentLocation       String
   estimatedDeliveryDate DateTime?
-  history               TrackingEvent[]
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  trackingEvents       TrackingEvent[]
+  @@map("packages")
 }
 
 model TrackingEvent {
   id         Int      @id @default(autoincrement())
-  date       DateTime
+  packageId   Int
+  date        DateTime @default(now())
   description String
   location    String
-  package     Package @relation(fields: [packageId], references: [id])
-  packageId   Int
+  createdAt   DateTime @default(now())
 
-  eventType   String?    @default("status_update")
-  details     Json?
+  package     Package  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@map("tracking_events")
+}
+
+enum PackageStatus {
+  RECEIVED
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  EXCEPTION
+  RETURNED
 }

@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<definitions name="TrackingService"
-             targetNamespace="http://logistica.com/ws/tracking"
-             xmlns="http://schemas.xmlsoap.org/wsdl/"
-             xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+<definitions xmlns="http://schemas.xmlsoap.org/wsdl/"
              xmlns:tns="http://logistica.com/ws/tracking"
-             xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+             xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+             xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+             targetNamespace="http://logistica.com/ws/tracking"
+             elementFormDefault="qualified">
 
+  <!-- Types -->
   <types>
-    <xsd:schema targetNamespace="http://logistica.com/ws/tracking">
+    <xsd:schema targetNamespace="http://logistica.com/ws/tracking"
+                elementFormDefault="qualified">
 
       <!-- TrackingEvent Type -->
       <xsd:complexType name="TrackingEvent">
@@ -18,43 +20,43 @@
         </xsd:sequence>
       </xsd:complexType>
 
-      <!-- TrackingEvent Array -->
-      <xsd:complexType name="TrackingEventArray">
-        <xsd:sequence>
-          <xsd:element name="event" type="tns:TrackingEvent" minOccurs="0" maxOccurs="unbounded"/>
-        </xsd:sequence>
-      </xsd:complexType>
+      <!-- GetTrackingStatusRequest -->
+      <xsd:element name="GetTrackingStatus">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="trackingNumber" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
 
-      <!-- GetTrackingStatusRequest Type -->
-      <xsd:complexType name="GetTrackingStatusRequest">
-        <xsd:sequence>
-          <xsd:element name="trackingNumber" type="xsd:string"/>
-        </xsd:sequence>
-      </xsd:complexType>
+      <!-- GetTrackingStatusResponse -->
+      <xsd:element name="GetTrackingStatusResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="status" type="xsd:string"/>
+            <xsd:element name="currentLocation" type="xsd:string"/>
+            <xsd:element name="estimatedDeliveryDate" type="xsd:date" minOccurs="0"/>
+            <xsd:element name="history" minOccurs="0">
+              <xsd:complexType>
+                <xsd:sequence>
+                  <xsd:element name="event" type="tns:TrackingEvent" maxOccurs="unbounded"/>
+                </xsd:sequence>
+              </xsd:complexType>
+            </xsd:element>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
 
-      <!-- GetTrackingStatusResponse Type -->
-      <xsd:complexType name="GetTrackingStatusResponse">
-        <xsd:sequence>
-          <xsd:element name="status" type="xsd:string"/>
-          <xsd:element name="currentLocation" type="xsd:string"/>
-          <xsd:element name="estimatedDeliveryDate" type="xsd:date" minOccurs="0"/>
-          <xsd:element name="history" type="tns:TrackingEventArray"/>
-        </xsd:sequence>
-      </xsd:complexType>
-
-      <!-- TrackingError Type -->
-      <xsd:complexType name="TrackingError">
-        <xsd:sequence>
-          <xsd:element name="errorCode" type="xsd:int"/>
-          <xsd:element name="errorMessage" type="xsd:string"/>
-          <xsd:element name="invalidField" type="xsd:string" minOccurs="0"/>
-        </xsd:sequence>
-      </xsd:complexType>
-
-      <!-- Elements -->
-      <xsd:element name="GetTrackingStatus" type="tns:GetTrackingStatusRequest"/>
-      <xsd:element name="GetTrackingStatusResponse" type="tns:GetTrackingStatusResponse"/>
-      <xsd:element name="TrackingError" type="tns:TrackingError"/>
+      <!-- TrackingError -->
+      <xsd:element name="TrackingError">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="errorCode" type="xsd:int"/>
+            <xsd:element name="errorMessage" type="xsd:string"/>
+            <xsd:element name="invalidField" type="xsd:string" minOccurs="0"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
 
     </xsd:schema>
   </types>
@@ -68,21 +70,21 @@
     <part name="parameters" element="tns:GetTrackingStatusResponse"/>
   </message>
 
-  <message name="TrackingFault">
+  <message name="TrackingErrorFault">
     <part name="fault" element="tns:TrackingError"/>
   </message>
 
-  <!-- Port Type -->
-  <portType name="TrackingPortType">
+  <!-- PortType -->
+  <portType name="TrackingServicePortType">
     <operation name="GetTrackingStatus">
       <input message="tns:GetTrackingStatusRequest"/>
       <output message="tns:GetTrackingStatusResponse"/>
-      <fault name="TrackingFault" message="tns:TrackingFault"/>
+      <fault name="TrackingErrorFault" message="tns:TrackingErrorFault"/>
     </operation>
   </portType>
 
   <!-- Binding -->
-  <binding name="TrackingBinding" type="tns:TrackingPortType">
+  <binding name="TrackingServiceBinding" type="tns:TrackingServicePortType">
     <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
 
     <operation name="GetTrackingStatus">
@@ -93,16 +95,16 @@
       <output>
         <soap:body use="literal"/>
       </output>
-      <fault name="TrackingFault">
-        <soap:fault name="TrackingFault" use="literal"/>
+      <fault name="TrackingErrorFault">
+        <soap:fault name="TrackingErrorFault" use="literal"/>
       </fault>
     </operation>
   </binding>
 
   <!-- Service -->
   <service name="TrackingService">
-    <port name="TrackingPort" binding="tns:TrackingBinding">
-      <soap:address location="http://localhost:3000/tracking"/>
+    <port name="TrackingServicePort" binding="tns:TrackingServiceBinding">
+      <soap:address location="http://localhost:3000/soap"/>
     </port>
   </service>
 

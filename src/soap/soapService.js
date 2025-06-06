@@ -1,63 +1,90 @@
-import trackingService from '../services/trackingService.js';
+const soap = require('soap');
+const fs = require('fs');
+const path = require('path');
+const TrackingService = require('../services/trackingService');
 
-const soapService = {
-  TrackingService: {
-    TrackingPort: {
-      GetTrackingStatus: async (args, callback) => {
-        try {
-          console.log('SOAP Request received:', args);
+const setupSoapService = (app, prisma) => {
+  const wsdlPath = path.join(__dirname, 'tracking-service.wsdl');
+  const wsdlContent = fs.readFileSync(wsdlPath, 'utf8');
 
-          if (!args.trackingNumber) {
+  const serviceDefinition = {
+    TrackingService: {
+      TrackingPort: {
+        GetTrackingStatus: async function (args, callback) {
+          try {
+            const trackingNumber = args.trackingNumber;
+            if (!trackingNumber) {
+              return callback({
+                Fault: {
+                  Code: { Value: 'Client' },
+                  Reason: { Text: 'Número de tracking requerido' },
+                  Detail: {
+                    TrackingError: {
+                      errorCode: 'INVALID_INPUT',
+                      errorMessage: 'El número de tracking es obligatorio',
+                      invalidField: 'trackingNumber',
+                    }
+                  }
+                }
+              });
+            }
+
+            const service = new TrackingService(prisma);
+            const result = await service.getTrackingStatus(trackingNumber);
+
+            if (!result.success) {
+              return callback({
+                Fault: {
+                  Code: { Value: 'Server' },
+                  Reason: { Text: result.error },
+                  Detail: {
+                    TrackingError: {
+                      errorCode: result.errorCode || 'NOT_FOUND',
+                      errorMessage: result.error,
+                      invalidField: 'trackingNumber',
+                    }
+                  }
+                }
+              });
+            }
+
+            return callback(null, {
+              status: result.data.status,
+              currentLocation: result.data.currentLocation,
+              estimatedDeliveryDate: result.data.estimatedDeliveryDate,
+              history: result.data.history.map(e => ({
+                date: e.date,
+                description: e.description,
+                location: e.location
+              }))
+            });
+          } catch (err) {
             return callback({
               Fault: {
-                Code: { Value: "soap:Sender" },
-                Reason: { Text: "Tracking number is required" },
+                Code: { Value: 'Server' },
+                Reason: { Text: 'Error interno del servidor' },
                 Detail: {
                   TrackingError: {
-                    errorCode: 400,
-                    errorMessage: "El número de tracking es requerido",
-                    invalidField: "trackingNumber"
+                    errorCode: 'INTERNAL_ERROR',
+                    errorMessage: 'Error interno del servidor',
+                    invalidField: null,
                   }
                 }
               }
             });
           }
-
-          const result = await trackingService.getTrackingStatus(args.trackingNumber);
-
-          if (result.error) {
-            return callback({
-              Fault: {
-                Code: { Value: "soap:Receiver" },
-                Reason: { Text: result.error.errorMessage },
-                Detail: {
-                  TrackingError: result.error
-                }
-              }
-            });
-          }
-
-          callback(null, result);
-
-        } catch (error) {
-          console.error('Error procesando solicitud SOAP:', error);
-          return callback({
-            Fault: {
-              Code: { Value: "soap:Receiver" },
-              Reason: { Text: "Internal server error" },
-              Detail: {
-                TrackingError: {
-                  errorCode: 500,
-                  errorMessage: "Error interno del servidor",
-                  invalidField: null
-                }
-              }
-            }
-          });
         }
       }
     }
-  }
+  };
+
+  soap.listen(app, '/tracking', serviceDefinition, wsdlContent, (err) => {
+    if (err) {
+      console.error('Error iniciando SOAP:', err);
+    } else {
+      console.log('SOAP activo en /tracking');
+    }
+  });
 };
 
-export default soapService;
+module.exports = setupSoapService;
