@@ -228,4 +228,4 @@ class TrackingError extends Error {
   }
 }
 
-module.exports = TrackingError;
+export default TrackingError;

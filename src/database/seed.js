@@ -1,5 +1,5 @@
-const { prisma } = require('./connection');
-const logger = require('../utils/logger');
+import { prisma } from './connection.js';
+import { info, warn, error } from '../utils/logger.js';
 
 const samplePackages = [
   {
@@ -164,41 +164,40 @@ const sampleTrackingEvents = {
 
 async function clearDatabase() {
   try {
-    logger.info('Limpiando base de datos...');
+    info('Limpiando base de datos...');
 
     await prisma.trackingEvent.deleteMany();
     await prisma.package.deleteMany();
 
-    logger.info('Base de datos limpiada');
-  } catch (error) {
-    logger.error('Error al limpiar base de datos:', error);
-    throw error;
+    info('Base de datos limpiada');
+  } catch (err) {
+    error('Error al limpiar base de datos:', err);
+    throw err;
   }
 }
 
-
 async function createSamplePackages() {
   try {
-    logger.info('Creando paquetes de ejemplo...');
+    info('Creando paquetes de ejemplo...');
 
     for (const packageData of samplePackages) {
       const createdPackage = await prisma.package.create({
         data: packageData
       });
 
-      logger.info(`Paquete creado: ${createdPackage.trackingNumber}`);
+      info(`Paquete creado: ${createdPackage.trackingNumber}`);
     }
 
-    logger.info(`${samplePackages.length} paquetes creados exitosamente`);
-  } catch (error) {
-    logger.error('Error al crear paquetes:', error);
-    throw error;
+    info(`${samplePackages.length} paquetes creados exitosamente`);
+  } catch (err) {
+    error('Error al crear paquetes:', err);
+    throw err;
   }
 }
 
 async function createSampleTrackingEvents() {
   try {
-    logger.info('Creando eventos de seguimiento...');
+    info('Creando eventos de seguimiento...');
 
     let totalEvents = 0;
 
@@ -208,7 +207,7 @@ async function createSampleTrackingEvents() {
       });
 
       if (!packageData) {
-        logger.warn(`⚠️ Paquete no encontrado: ${trackingNumber}`);
+        warn(`⚠️ Paquete no encontrado: ${trackingNumber}`);
         continue;
       }
 
@@ -224,25 +223,25 @@ async function createSampleTrackingEvents() {
         totalEvents++;
       }
 
-      logger.info(`Eventos creados para: ${trackingNumber}`);
+      info(`Eventos creados para: ${trackingNumber}`);
     }
 
-    logger.info(`${totalEvents} eventos de seguimiento creados exitosamente`);
-  } catch (error) {
-    logger.error('Error al crear eventos de seguimiento:', error);
-    throw error;
+    info(`${totalEvents} eventos de seguimiento creados exitosamente`);
+  } catch (err) {
+    error('Error al crear eventos de seguimiento:', err);
+    throw err;
   }
 }
 
 async function verifyData() {
   try {
-    logger.info('Verificando datos creados...');
+    info('Verificando datos creados...');
 
     const packageCount = await prisma.package.count();
     const eventCount = await prisma.trackingEvent.count();
 
-    logger.info(`Paquetes en base de datos: ${packageCount}`);
-    logger.info(`Eventos en base de datos: ${eventCount}`);
+    info(`Paquetes en base de datos: ${packageCount}`);
+    info(`Eventos en base de datos: ${eventCount}`);
 
     const packages = await prisma.package.findMany({
       include: {
@@ -251,31 +250,31 @@ async function verifyData() {
       take: 3
     });
 
-    logger.info('Ejemplos de paquetes creados:');
+    info('Ejemplos de paquetes creados:');
     packages.forEach(pkg => {
-      logger.info(`  - ${pkg.trackingNumber}: ${pkg.status} (${pkg.trackingEvents.length} eventos)`);
+      info(`  - ${pkg.trackingNumber}: ${pkg.status} (${pkg.trackingEvents.length} eventos)`);
     });
 
-  } catch (error) {
-    logger.error('Error al verificar datos:', error);
-    throw error;
+  } catch (err) {
+    error('Error al verificar datos:', err);
+    throw err;
   }
 }
 
 async function seedDatabase() {
   try {
-    logger.info('Iniciando proceso de seeding...');
+    info('Iniciando proceso de seeding...');
 
     await clearDatabase();
     await createSamplePackages();
     await createSampleTrackingEvents();
     await verifyData();
 
-    logger.info('Proceso de seeding completado exitosamente');
+    info('Proceso de seeding completado exitosamente');
 
-  } catch (error) {
-    logger.error('Error en proceso de seeding:', error);
-    throw error;
+  } catch (err) {
+    error('Error en proceso de seeding:', err);
+    throw err;
   } finally {
     await prisma.$disconnect();
   }
@@ -283,21 +282,24 @@ async function seedDatabase() {
 
 async function resetDatabase() {
   try {
-    logger.info('Reseteando base de datos...');
+    info('Reseteando base de datos...');
 
     await clearDatabase();
 
-    logger.info('Base de datos reseteada');
+    info('Base de datos reseteada');
 
-  } catch (error) {
-    logger.error('Error al resetear base de datos:', error);
-    throw error;
+  } catch (err) {
+    error('Error al resetear base de datos:', err);
+    throw err;
   } finally {
     await prisma.$disconnect();
   }
 }
 
-if (require.main === module) {
+// Para ejecución directa desde la línea de comandos
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+
+if (isMainModule) {
   const command = process.argv[2];
 
   switch (command) {
@@ -311,7 +313,7 @@ if (require.main === module) {
   }
 }
 
-module.exports = {
+export {
   seedDatabase,
   resetDatabase,
   clearDatabase,

@@ -1,16 +1,18 @@
 import TrackingService from '../services/trackingService.js';
 import errorUtils from '../utils/errors.js';
-import { info, error, debug, logSOAPSuccess, logSOAPError } from '../utils/logger.js';
+import { info, error, debug, warn, logSOAPSuccess, logSOAPError } from '../utils/logger.js';
 
 const { TrackingError, ERROR_CODES } = errorUtils;
+
 class SoapController {
+  // Método estático que será llamado por el servidor SOAP
   static async GetTrackingStatus(args, callback) {
     const startTime = Date.now();
     let trackingNumber = null;
 
     try {
       trackingNumber = args.trackingNumber;
-      info(`SOAP Request - GetTrackingStatus: trackingNumber:${trackingNumber}`);
+      info(`SOAP Request - GetTrackingStatus: trackingNumber=${trackingNumber}`);
 
       if (!trackingNumber) {
         throw new TrackingError(
@@ -23,37 +25,36 @@ class SoapController {
       const trackingInfo = await TrackingService.getTrackingStatus(trackingNumber);
 
       const soapResponse = {
-        GetTrackingStatusResponse: {
-          status: trackingInfo.status,
-          currentLocation: trackingInfo.currentLocation,
-          estimatedDeliveryDate: trackingInfo.estimatedDeliveryDate,
-          history: {
-            event: trackingInfo.history
-          }
+        status: trackingInfo.status,
+        currentLocation: trackingInfo.currentLocation,
+        estimatedDeliveryDate: trackingInfo.estimatedDeliveryDate,
+        history: {
+          event: trackingInfo.history
         }
       };
 
       const responseTime = Date.now() - startTime;
-      logSOAPSuccess(`GetTrackingStatus`, trackingNumber, responseTime);
+      logSOAPSuccess('GetTrackingStatus', trackingNumber, responseTime);
 
       callback(null, soapResponse);
 
-    } catch (error) {
+    } catch (err) {
       const responseTime = Date.now() - startTime;
-      if (error instanceof TrackingError) {
-        logSOAPError(`GetTrackingStatus`, error, trackingNumber);
+
+      if (err instanceof TrackingError) {
+        logSOAPError('GetTrackingStatus', err, trackingNumber);
 
         const soapFault = {
           Fault: {
             faultcode: 'Client',
-            faultstring: error.errorMessage,
-            detail: error.toSOAPFault()
+            faultstring: err.errorMessage,
+            detail: err.toSOAPFault()
           }
         };
 
         callback(soapFault);
       } else {
-        error(`SOAP Internal Error - GetTrackingStatus: ${error.message}`);
+        error(`SOAP Internal Error - GetTrackingStatus: ${err.message}`);
 
         const internalError = new TrackingError(
           ERROR_CODES.INTERNAL_SERVER_ERROR,
@@ -73,14 +74,23 @@ class SoapController {
     }
   }
 
+  // Definición del servicio SOAP
   static getServiceDefinition() {
-    return {
+    console.log('� Creando definición del servicio SOAP...');
+
+    const serviceDefinition = {
       TrackingService: {
         TrackingServicePort: {
-          GetTrackingStatus: this.GetTrackingStatus
+          GetTrackingStatus: function(args, callback) {
+            console.log('� GetTrackingStatus llamado con args:', args);
+            return SoapController.GetTrackingStatus(args, callback);
+          }
         }
       }
     };
+
+    console.log('✅ Definición del servicio creada:', JSON.stringify(serviceDefinition, null, 2));
+    return serviceDefinition;
   }
 
   static soapLoggingMiddleware(req, res, next) {
@@ -90,7 +100,7 @@ class SoapController {
     debug(`SOAP Request headers: ${JSON.stringify(req.headers)}`);
 
     if (req.body) {
-      debug(`SOAP Request body: ${req.body}`);
+      debug(`SOAP Request body: ${typeof req.body === 'string' ? req.body.substring(0, 500) : JSON.stringify(req.body)}`);
     }
 
     const originalSend = res.send;
@@ -99,7 +109,7 @@ class SoapController {
       info(`SOAP Response sent: ${res.statusCode} - ${responseTime}ms`);
 
       if (res.statusCode >= 400) {
-        debug(`SOAP Response body: ${data}`);
+        debug(`SOAP Response body: ${typeof data === 'string' ? data.substring(0, 500) : JSON.stringify(data)}`);
       }
 
       originalSend.call(this, data);
@@ -160,7 +170,6 @@ class SoapController {
 
   static validateSOAPHeaders(req) {
     const contentType = req.get('Content-Type');
-    const soapAction = req.get('SOAPAction');
 
     if (!contentType || !contentType.includes('text/xml')) {
       warn(`Invalid Content-Type: ${contentType}`);
@@ -171,11 +180,9 @@ class SoapController {
   }
 }
 
-export {
-  SoapController as default,
-  SoapController
-};
+export default SoapController;
 
+// Exportaciones nombradas
 export const getServiceDefinition = SoapController.getServiceDefinition;
 export const soapLoggingMiddleware = SoapController.soapLoggingMiddleware;
 export const soapErrorHandler = SoapController.soapErrorHandler;

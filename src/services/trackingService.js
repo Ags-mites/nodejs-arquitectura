@@ -1,7 +1,9 @@
 import Package from '../models/package.js';
 import TrackingEvent from '../models/trackingEvent.js';
 import { info, error } from '../utils/logger.js';
-import TrackingError from '../utils/errors.js';
+import errorUtils from '../utils/errors.js';
+
+const { TrackingError } = errorUtils;
 
 class TrackingService {
   /**
@@ -42,15 +44,15 @@ class TrackingService {
         }))
       };
 
-      logger.info(`Consulta exitosa para tracking: ${trackingNumber}`);
+      info(`Consulta exitosa para tracking: ${trackingNumber}`);
       return response;
 
-    } catch (error) {
-      if (error instanceof TrackingError) {
-        throw error;
+    } catch (err) {
+      if (err instanceof TrackingError) {
+        throw err;
       }
 
-      logger.error('Error interno en getTrackingStatus:', error);
+      error('Error interno en getTrackingStatus:', err);
       throw new TrackingError(
         1500,
         'Error interno del servidor al procesar la consulta',
@@ -76,12 +78,12 @@ class TrackingService {
 
       await TrackingEvent.create(initialEvent);
 
-      logger.info(`Paquete creado exitosamente: ${newPackage.trackingNumber}`);
+      info(`Paquete creado exitosamente: ${newPackage.trackingNumber}`);
       return newPackage;
 
-    } catch (error) {
-      logger.error('Error al crear paquete:', error);
-      throw error;
+    } catch (err) {
+      error('Error al crear paquete:', err);
+      throw err;
     }
   }
 
@@ -119,11 +121,12 @@ class TrackingService {
         await TrackingEvent.create(newEvent);
       }
 
-      logger.info(`Paquete actualizado: ${trackingNumber}`);
+      info(`Paquete actualizado: ${trackingNumber}`);
       return updatedPackage;
 
-    } catch (error) {
-      logger.error(`Error al actualizar paquete: ${error}`);
+    } catch (err) {
+      error(`Error al actualizar paquete: ${err}`);
+      throw err;
     }
   }
 
@@ -175,8 +178,8 @@ class TrackingService {
         status: Package.getStatusString(pkg.status)
       }));
 
-    } catch (error) {
-      logger.error(`Error al obtener todos los paquetes: ${error}`);
+    } catch (err) {
+      error(`Error al obtener todos los paquetes: ${err}`);
       throw new TrackingError(
         1500,
         'Error interno del servidor',

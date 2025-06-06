@@ -1,5 +1,5 @@
-const { prisma } = require('../database/connection').default;
-const logger = require('../utils/logger');
+import { prisma } from '../database/connection.js';
+import { info, error } from '../utils/logger.js';
 
 class TrackingEvent {
 
@@ -18,10 +18,11 @@ class TrackingEvent {
         }
       });
 
-      logger.info(`Evento de tracking creado para paquete: ${eventData.packageId}`);
+      info(`Evento de tracking creado para paquete: ${eventData.packageId}`);
       return newEvent;
-    } catch (error) {
-      logger.error('Error al crear evento de tracking:', error);
+    } catch (err) {
+      error('Error al crear evento de tracking:', err);
+      throw err;
     }
   }
 
@@ -40,10 +41,11 @@ class TrackingEvent {
         }
       });
 
-      logger.info(`Recuperados ${events.length} eventos para paquete: ${packageId}`);
+      info(`Recuperados ${events.length} eventos para paquete: ${packageId}`);
       return events;
-    } catch (error) {
-      logger.error('Error al obtener eventos de tracking:', error);
+    } catch (err) {
+      error('Error al obtener eventos de tracking:', err);
+      throw err;
     }
   }
 
@@ -62,10 +64,11 @@ class TrackingEvent {
         }))
       });
 
-      logger.info(`Creados ${events.count} eventos de tracking`);
+      info(`Creados ${events.count} eventos de tracking`);
       return events;
-    } catch (error) {
-      logger.error('Error al crear múltiples eventos:', error);
+    } catch (err) {
+      error('Error al crear múltiples eventos:', err);
+      throw err;
     }
   }
 
@@ -83,10 +86,10 @@ class TrackingEvent {
         data: updateData
       });
 
-      logger.info(`Evento de tracking actualizado: ${eventId}`);
+      info(`Evento de tracking actualizado: ${eventId}`);
       return updatedEvent;
-    } catch (error) {
-      logger.error('Error al actualizar evento:', error);
+    } catch (err) {
+      error('Error al actualizar evento:', err);
       throw new Error('Error interno al actualizar el evento de seguimiento');
     }
   }
@@ -103,10 +106,11 @@ class TrackingEvent {
         }
       });
 
-      logger.info(`Evento de tracking eliminado: ${eventId}`);
+      info(`Evento de tracking eliminado: ${eventId}`);
       return deletedEvent;
-    } catch (error) {
-      logger.error('Error al eliminar evento:', error);
+    } catch (err) {
+      error('Error al eliminar evento:', err);
+      throw err;
     }
   }
 
@@ -126,12 +130,13 @@ class TrackingEvent {
       });
 
       if (latestEvent) {
-        logger.info(`Último evento recuperado para paquete: ${packageId}`);
+        info(`Último evento recuperado para paquete: ${packageId}`);
       }
 
       return latestEvent;
-    } catch (error) {
-      logger.error('Error al obtener último evento:', error);
+    } catch (err) {
+      error('Error al obtener último evento:', err);
+      throw err;
     }
   }
 }
