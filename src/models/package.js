@@ -35,4 +35,29 @@ class Package {
       throw new Error('Error interno al buscar el paquete');
     }
   }
+
+  static async create(packageData) {
+    try {
+      const newPackage = await prisma.package.create({
+        data: {
+          trackingNumber: packageData.trackingNumber,
+          senderName: packageData.senderName,
+          receiverName: packageData.receiverName,
+          origin: packageData.origin,
+          destination: packageData.destination,
+          weight: packageData.weight,
+          dimensions: packageData.dimensions,
+          status: packageData.status || 'RECEIVED',
+          currentLocation: packageData.currentLocation,
+          estimatedDeliveryDate: packageData.estimatedDeliveryDate
+        },
+        include: {
+          trackingEvents: true
+        }
+      });
+
+    } catch (error) {
+
+    }
+  }
 }
